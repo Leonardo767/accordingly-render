@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chat → Form</title>
+<style>
+  :root{
+    --ink:#1f2937;
+    --paper:#f5f6f8;
+    --panel:#ffffff;
+    --line:#d6dade;
+    --line-strong:#b8bec5;
+    --muted:#6b7280;
+    --muted-2:#9aa1aa;
+    --accent:#1d4ed8;
+    --accent-soft:#e8eefc;
+    --success:#137a41;
+    --warning:#a87000;
+    --danger:#b3261e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--paper);color:var(--ink);
+    font-family: Arial, Helvetica, sans-serif; font-size:13px;}
+  #root{min-height:100vh}
+  .panel{border:1px solid var(--line); border-radius:6px; background:var(--panel);}
+  .mono{font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;}
+
+  .field{
+    border:1px solid var(--line-strong); background:#fff; min-height:22px;
+    padding:3px 6px; font-family:Arial,Helvetica,sans-serif; font-size:12px;
+    position:relative; border-radius:2px;
+  }
+  .field--sm{min-height:18px; font-size:11px;}
+  .field-label{font-family:Arial,Helvetica,sans-serif; font-size:9px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); line-height:1.1; margin-bottom:2px; font-weight:600;}
+  .field .val{display:inline-block;}
+  .field .caret{display:inline-block; width:1px; height:13px; background:var(--ink); vertical-align:-2px; animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0}}
+  @keyframes scorePop{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+  @keyframes pinDrop{0%{transform:translate(-50%,-260%);opacity:0}70%{transform:translate(-50%,-90%);opacity:1}100%{transform:translate(-50%,-100%);opacity:1}}
+  .field.filling{background:#fff8e0;}
+  .field.filled{background:#f0f7ff;}
+  .field .underline{
+    position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--accent);
+    transform:scaleX(0); transform-origin:left; transition:transform .3s ease;
+  }
+  .field.filling .underline{transform:scaleX(1);}
+  .checkbox{
+    width:12px; height:12px; border:1px solid var(--line-strong); display:inline-block; vertical-align:-2px; background:#fff; position:relative; border-radius:2px;
+  }
+  .checkbox.on{background:var(--accent); border-color:var(--accent);}
+  .checkbox.on::after{
+    content:""; position:absolute; left:2px; top:-1px; width:6px; height:10px;
+    border-right:2px solid #fff; border-bottom:2px solid #fff;
+    transform:rotate(40deg);
+  }
+  .row{display:flex; gap:6px;}
+  .col{display:flex; flex-direction:column; gap:6px;}
+
+  /* Tweaks panel */
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:pointer}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:pointer}
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:pointer;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:pointer}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-fab{position:fixed;right:16px;bottom:16px;z-index:2147483645;
+    width:36px;height:36px;border-radius:50%;border:1px solid var(--line);
+    background:#fff;cursor:pointer;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:var(--muted);
+    box-shadow:0 2px 6px rgba(0,0,0,.08);display:grid;place-items:center}
+  .twk-fab:hover{color:var(--ink);box-shadow:0 4px 10px rgba(0,0,0,.12)}
+
+  /* Wireframe CTA — bottom of form panel (clear of tweaks FAB ~36px + margin) */
+  .wireframe-submit{
+    position:absolute; right:58px; bottom:24px; z-index:10;
+    font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600;
+    padding:12px 24px; border-radius:6px; border:1px solid rgba(0,0,0,.12);
+    background:var(--success); color:#fff; text-decoration:none; cursor:pointer;
+    box-shadow:0 1px 2px rgba(0,0,0,.08), 0 4px 14px rgba(19,122,65,.28);
+    transition:filter .15s, box-shadow .15s;
+  }
+  .wireframe-submit:hover{filter:brightness(1.07); box-shadow:0 2px 4px rgba(0,0,0,.1), 0 6px 18px rgba(19,122,65,.32)}
+  .wireframe-submit:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// =============================================================
+// TWEAKS — minimal standalone version (no host iframe protocol)
+// =============================================================
+function useTweaks(defaults) {
+  const [values, setValues] = useState(defaults);
+  const setTweak = useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues(prev => ({ ...prev, ...edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button className="twk-fab" title="Tweaks" onClick={()=>setOpen(true)}>⚙</button>
+    );
+  }
+  return (
+    <div className="twk-panel">
+      <div className="twk-hd">
+        <b>{title}</b>
+        <button className="twk-x" aria-label="Close tweaks" onClick={()=>setOpen(false)}>✕</button>
+      </div>
+      <div className="twk-body">{children}</div>
+    </div>
+  );
+}
+
+function TweakSection({ label, children }) {
+  return (<><div className="twk-sect">{label}</div>{children}</>);
+}
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl"><span>{label}</span>{value != null && <span className="twk-val">{value}</span>}</div>
+      {children}
+    </div>
+  );
+}
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+function TweakButton({ label, onClick }) {
+  return <button type="button" className="twk-btn" onClick={onClick}>{label}</button>;
+}
+
+// =============================================================
+// ACORD 125 FORM
+// =============================================================
+function AcordForm({values, filling}) {
+  const F = (id, opts={}) => {
+    const v = values[id];
+    const isFilling = filling === id;
+    const filled = v !== undefined && v !== false && v !== "";
+    const cls = `field ${isFilling?"filling":""} ${filled && !isFilling?"filled":""} ${opts.sm?"field--sm":""}`;
+    return (
+      <span data-fid={id} className={cls} style={{...(opts.style||{}), display: opts.block?"block":"inline-block"}}>
+        <span className="val">{typeof v === "string" ? v : ""}</span>
+        {isFilling && <span className="caret"/>}
+        <span className="underline"/>
+      </span>
+    );
+  };
+  const C = (id, label, fontSize=10) => (
+    <label data-fid={id} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize,marginRight:8}}>
+      <span className={`checkbox ${values[id]?"on":""}`}/>
+      <span>{label}</span>
+    </label>
+  );
+  const R = (groupKey, value, label, fontSize=10) => (
+    <label data-fid={groupKey} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize,marginRight:8}}>
+      <span className={`checkbox ${values[groupKey]===value?"on":""}`}/>
+      <span>{label}</span>
+    </label>
+  );
+  const SH = ({children}) => (
+    <div style={{background:"#374151",color:"#fff",padding:"5px 10px",fontWeight:600,fontSize:10,letterSpacing:".08em",marginTop:10,borderRadius:"3px 3px 0 0"}}>
+      {children}
+    </div>
+  );
+  const Cell = ({label, children, style}) => (
+    <div style={{border:"1px solid var(--line)",padding:"4px 6px",minHeight:30,...style}}>
+      {label && <div className="field-label">{label}</div>}
+      {children}
+    </div>
+  );
+  const Page = ({n, children}) => (
+    <div style={{padding:"16px 18px",borderBottom: n<4?"1px dashed var(--line)":"none",position:"relative"}}>
+      {children}
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--muted-2)",marginTop:10}}>
+        <span>ACORD 125 (2016/03)</span>
+        <span>Page {n} of 4</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{fontSize:11,lineHeight:1.2,fontFamily:"Arial,Helvetica,sans-serif"}}>
+
+      <Page n={1}>
+        <div style={{display:"grid",gridTemplateColumns:"60px 1fr 130px",border:"1px solid var(--line)",alignItems:"stretch"}}>
+          <div style={{borderRight:"1px solid var(--line)",display:"grid",placeItems:"center",fontFamily:"Arial,Helvetica,sans-serif",fontSize:9,color:"var(--muted-2)",letterSpacing:".06em",textTransform:"uppercase"}}>Logo</div>
+          <div style={{padding:"8px 12px",textAlign:"center",borderRight:"1px solid var(--line)"}}>
+            <div style={{fontWeight:700,fontSize:13,letterSpacing:".04em",color:"var(--ink)"}}>COMMERCIAL INSURANCE APPLICATION</div>
+            <div style={{fontSize:10,fontWeight:600,color:"var(--muted)",marginTop:2}}>APPLICANT INFORMATION SECTION</div>
+          </div>
+          <Cell label="Date (mm/dd/yyyy)">
+            {F("app_date",{style:{minWidth:"100%"}})}
+          </Cell>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",border:"1px solid var(--line)",borderTop:"none"}}>
+          <div style={{borderRight:"1px solid var(--line)"}}>
+            <Cell label="Agency" style={{minHeight:60}}>
+              {F("agency",{block:true})}
+            </Cell>
+            <div style={{display:"grid",gridTemplateColumns:"110px 1fr"}}>
+              <div style={{borderRight:"1px solid var(--line)",borderTop:"1px solid var(--line)",padding:"3px 5px"}}>
+                <div className="field-label">Contact name:</div>
+                <div className="field-label">Phone (A/C, No, Ext):</div>
+                <div className="field-label">Fax (A/C, No):</div>
+                <div className="field-label">E-mail address:</div>
+              </div>
+              <div style={{borderTop:"1px solid var(--line)",padding:"3px 5px"}}>
+                {F("contact_name",{block:true})}
+                {F("contact_phone",{block:true})}
+                {F("contact_fax",{block:true})}
+                {F("contact_email",{block:true})}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <Cell label="Code:">{F("agency_code")}</Cell>
+              <Cell label="Subcode:" style={{borderLeft:"1px solid var(--line)"}}>{F("agency_subcode")}</Cell>
+            </div>
+            <Cell label="Agency Customer ID:" style={{borderTop:"1px solid var(--line)"}}>
+              {F("agency_cust_id")}
+            </Cell>
+          </div>
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 100px"}}>
+              <Cell label="Carrier">{F("carrier",{block:true})}</Cell>
+              <Cell label="NAIC Code" style={{borderLeft:"1px solid var(--line)"}}>{F("naic_code")}</Cell>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 100px",borderTop:"1px solid var(--line)"}}>
+              <Cell label="Company Policy or Program Name">{F("program_name")}</Cell>
+              <Cell label="Program Code" style={{borderLeft:"1px solid var(--line)"}}>{F("program_code")}</Cell>
+            </div>
+            <Cell label="Policy Number" style={{borderTop:"1px solid var(--line)"}}>
+              {F("policy_number")}
+            </Cell>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <Cell label="Underwriter">{F("underwriter")}</Cell>
+              <Cell label="Underwriter Office" style={{borderLeft:"1px solid var(--line)"}}>{F("underwriter_office")}</Cell>
+            </div>
+            <div style={{borderTop:"1px solid var(--line)",padding:"4px 5px"}}>
+              <div className="field-label">Status of Transaction</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:0,marginTop:2}}>
+                {C("status_quote","Quote")}
+                {C("status_issue","Issue Policy")}
+                {C("status_renew","Renew")}
+              </div>
+              <div style={{marginTop:2}}>
+                {C("status_bound","Bound (Give Date and/or Attach Copy):")}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,flexWrap:"wrap"}}>
+                {C("status_change","Change")}
+                {C("status_cancel","Cancel")}
+                <span style={{fontSize:10}}>Date</span>{F("status_date",{sm:true,style:{minWidth:60}})}
+                <span style={{fontSize:10}}>Time</span>{F("status_time",{sm:true,style:{minWidth:50}})}
+                {C("status_am","AM")}{C("status_pm","PM")}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SH>LINES OF BUSINESS</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"4px 6px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0 6px",fontSize:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",fontWeight:600,fontSize:9,letterSpacing:".05em",borderBottom:"1px solid var(--line)",paddingBottom:2}}>
+              <span>INDICATE LINES OF BUSINESS</span><span>PREMIUM</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",fontWeight:600,fontSize:9,letterSpacing:".05em",borderBottom:"1px solid var(--line)",paddingBottom:2}}>
+              <span></span><span>PREMIUM</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",fontWeight:600,fontSize:9,letterSpacing:".05em",borderBottom:"1px solid var(--line)",paddingBottom:2}}>
+              <span></span><span>PREMIUM</span>
+            </div>
+            {[
+              [["lob_boiler","Boiler & Machinery"],["lob_cyber","Cyber and Privacy"],["lob_yacht","Yacht"]],
+              [["lob_auto","Business Auto"],["lob_fid","Fiduciary Liability"],["",""]],
+              [["lob_bop","Business Owners"],["lob_garage","Garage and Dealers"],["",""]],
+              [["lob_gl","Commercial General Liability"],["lob_liquor","Liquor Liability"],["",""]],
+              [["lob_marine","Commercial Inland Marine"],["lob_motor","Motor Carrier"],["",""]],
+              [["lob_property","Commercial Property"],["lob_truck","Truckers"],["",""]],
+              [["lob_crime","Crime"],["lob_umbrella","Umbrella"],["",""]],
+            ].map((row,r)=>(
+              <React.Fragment key={r}>
+                {row.map(([id,label],c)=>(
+                  <div key={c} style={{display:"grid",gridTemplateColumns:"1fr auto",alignItems:"center",borderBottom:"1px dotted #ccc",padding:"1px 0",gap:6}}>
+                    {id ? (
+                      <>
+                        <label style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                          <span className={`checkbox ${values[id]?"on":""}`}/>
+                          <span>{label}</span>
+                        </label>
+                        <span style={{display:"inline-flex",alignItems:"center",gap:2}}>
+                          <span style={{color:"#999",fontSize:10}}>$</span>
+                          {F(id+"_prem",{sm:true,style:{minWidth:48,minHeight:13}})}
+                        </span>
+                      </>
+                    ) : <span/>}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        <SH>ATTACHMENTS</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"4px 6px",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"1px 8px",fontSize:10}}>
+          {[
+            ["att_ar","Accounts Receivable / Valuable Papers"],
+            ["att_glass","Glass and Sign Section"],
+            ["att_sov","Statement / Schedule of Values"],
+            ["att_ai","Additional Interest Schedule"],
+            ["att_hotel","Hotel / Motel Supplement"],
+            ["att_state","State Supplement (If applicable)"],
+            ["att_premises","Additional Premises Information Schedule"],
+            ["att_install","Installation / Builders Risk Section"],
+            ["att_vacant","Vacant Building Supplement"],
+            ["att_apt","Apartment Building Supplement"],
+            ["att_intll","International Liability Exposure Supplement"],
+            ["att_vehicle","Vehicle Schedule"],
+            ["att_condo","Condo Assn Bylaws (for D&O Coverage only)"],
+            ["att_intp","International Property Exposure Supplement"],
+            ["",""],
+            ["att_contractors","Contractors Supplement"],
+            ["att_loss","Loss Summary"],
+            ["",""],
+            ["att_coverages","Coverages Schedule"],
+            ["att_cargo","Open Cargo Section"],
+            ["",""],
+            ["att_dealers","Dealers Section"],
+            ["att_pps","Premium Payment Supplement"],
+            ["",""],
+            ["att_driver","Driver Information Schedule"],
+            ["att_prof","Professional Liability Supplement"],
+            ["",""],
+            ["att_edp","Electronic Data Processing Section"],
+            ["att_rest","Restaurant / Tavern Supplement"],
+            ["",""],
+          ].map(([id,label],i)=>(
+            <div key={i} style={{borderBottom:"1px dotted #ccc",padding:"1px 0"}}>
+              {id ? (
+                <label style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                  <span className={`checkbox ${values[id]?"on":""}`}/>
+                  <span>{label}</span>
+                </label>
+              ) : <span>&nbsp;</span>}
+            </div>
+          ))}
+        </div>
+
+        <SH>POLICY INFORMATION</SH>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1.3fr 1fr 0.6fr 0.9fr 0.9fr 1fr",border:"1px solid var(--line)",borderTop:"none"}}>
+          <Cell label="Proposed Eff Date">{F("eff_date")}</Cell>
+          <Cell label="Proposed Exp Date" style={{borderLeft:"1px solid var(--line)"}}>{F("exp_date")}</Cell>
+          <Cell label="Billing Plan" style={{borderLeft:"1px solid var(--line)"}}>
+            <div style={{display:"flex",gap:8,paddingTop:2}}>
+              {R("billing","direct","Direct")}
+              {R("billing","agency","Agency")}
+            </div>
+          </Cell>
+          <Cell label="Payment Plan" style={{borderLeft:"1px solid var(--line)"}}>{F("payment_plan")}</Cell>
+          <Cell label="Method of Payment" style={{borderLeft:"1px solid var(--line)"}}>{F("payment")}</Cell>
+          <Cell label="Audit" style={{borderLeft:"1px solid var(--line)"}}>{F("audit")}</Cell>
+          <Cell label="Deposit $" style={{borderLeft:"1px solid var(--line)"}}>{F("deposit")}</Cell>
+          <div style={{borderLeft:"1px solid var(--line)"}}>
+            <Cell label="Minimum Premium $" style={{borderBottom:"1px solid var(--line)"}}>{F("min_premium")}</Cell>
+            <Cell label="Policy Premium $">{F("policy_premium")}</Cell>
+          </div>
+        </div>
+
+        <SH>APPLICANT INFORMATION</SH>
+        {[
+          {prefix:"insured", label:"Name (First Named Insured) and Mailing Address (including ZIP+4)"},
+          {prefix:"insured2", label:"Name (Other Named Insured) and Mailing Address (including ZIP+4)"},
+          {prefix:"insured3", label:"Name (Other Named Insured) and Mailing Address (including ZIP+4)"},
+        ].map((g,gi)=>(
+          <div key={gi} style={{border:"1px solid var(--line)",borderTop: gi===0?"none":"none",borderBottom: gi<2?"none":undefined}}>
+            <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr"}}>
+              <div style={{borderRight:"1px solid var(--line)",padding:"3px 5px"}}>
+                <div className="field-label">{g.label}</div>
+                <div style={{marginTop:2}}>
+                  {F(g.prefix+"_name",{block:true,style:{fontWeight:600}})}
+                  {F(g.prefix+"_addr1",{block:true})}
+                  {F(g.prefix+"_addr2",{block:true})}
+                  <div style={{display:"flex",gap:3,marginTop:2}}>
+                    {F(g.prefix+"_city",{style:{flex:2}})}
+                    {F(g.prefix+"_state",{style:{flex:.5}})}
+                    {F(g.prefix+"_zip",{style:{flex:.8}})}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
+                  <Cell label="GL Code">{F(g.prefix+"_gl_code")}</Cell>
+                  <Cell label="SIC" style={{borderLeft:"1px solid var(--line)"}}>{F(g.prefix+"_sic")}</Cell>
+                  <Cell label="NAICS" style={{borderLeft:"1px solid var(--line)"}}>{F(g.prefix+"_naics")}</Cell>
+                  <Cell label="FEIN or Soc Sec #" style={{borderLeft:"1px solid var(--line)"}}>{F(g.prefix+"_fein")}</Cell>
+                </div>
+                <Cell label="Business Phone #:" style={{borderTop:"1px solid var(--line)"}}>{F(g.prefix+"_phone")}</Cell>
+                <Cell label="Website Address" style={{borderTop:"1px solid var(--line)"}}>{F(g.prefix+"_website")}</Cell>
+              </div>
+            </div>
+            <div style={{borderTop:"1px solid var(--line)",padding:"4px 6px",display:"flex",flexWrap:"wrap",gap:2,fontSize:10}}>
+              {R(g.prefix+"_entity","corp","Corporation")}
+              {R(g.prefix+"_entity","jv","Joint Venture")}
+              {R(g.prefix+"_entity","nonprofit","Not for Profit Org")}
+              {R(g.prefix+"_entity","sub_s","Subchapter \u201CS\u201D Corporation")}
+              <br/>
+              {R(g.prefix+"_entity","individual","Individual")}
+              {R(g.prefix+"_entity","llc","LLC")}
+              <span style={{fontSize:9,color:"#555"}}>No. of Members and Managers:</span>
+              {F(g.prefix+"_members",{sm:true,style:{minWidth:40}})}
+              {R(g.prefix+"_entity","partnership","Partnership")}
+              {R(g.prefix+"_entity","trust","Trust")}
+            </div>
+          </div>
+        ))}
+      </Page>
+
+      <Page n={2}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:4}}>
+          <span>Agency Customer ID: {F("agency_cust_id_p2",{sm:true,style:{minWidth:140}})}</span>
+        </div>
+
+        <SH>CONTACT INFORMATION</SH>
+        {[1,2].map(n=>(
+          <div key={n} style={{border:"1px solid var(--line)",borderTop: n===1?"none":undefined, borderBottom: n===1?"none":undefined}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr"}}>
+              <Cell label="Contact Type:">{F(`p2_contact${n}_type`)}</Cell>
+              <Cell label="Contact Name:" style={{borderLeft:"1px solid var(--line)"}}>{F(`p2_contact${n}_name`)}</Cell>
+              <Cell label="Primary E-mail Address:" style={{borderLeft:"1px solid var(--line)"}}>{F(`p2_contact${n}_email`)}</Cell>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <div style={{padding:"3px 5px"}}>
+                <div className="field-label">Primary Phone #</div>
+                <div>
+                  {C(`p2_contact${n}_p1_bus`,"Bus")}
+                  {C(`p2_contact${n}_p1_home`,"Home")}
+                  {C(`p2_contact${n}_p1_cell`,"Cell")}
+                </div>
+                {F(`p2_contact${n}_phone1`,{block:true})}
+              </div>
+              <div style={{padding:"3px 5px",borderLeft:"1px solid var(--line)"}}>
+                <div className="field-label">Secondary Phone #</div>
+                <div>
+                  {C(`p2_contact${n}_p2_bus`,"Bus")}
+                  {C(`p2_contact${n}_p2_home`,"Home")}
+                  {C(`p2_contact${n}_p2_cell`,"Cell")}
+                </div>
+                {F(`p2_contact${n}_phone2`,{block:true})}
+              </div>
+            </div>
+            <Cell label="Secondary E-mail Address:" style={{borderTop:"1px solid var(--line)"}}>{F(`p2_contact${n}_email2`)}</Cell>
+          </div>
+        ))}
+
+        <SH>PREMISES INFORMATION (Attach ACORD 823 for Additional Premises)</SH>
+        {[1,2,3].map(p=>(
+          <div key={p} style={{border:"1px solid var(--line)",borderTop: p===1?"none":undefined,borderBottom: p<3?"none":undefined}}>
+            <div style={{display:"grid",gridTemplateColumns:"60px 60px 1fr 60px 60px"}}>
+              <Cell label="Loc #">{F(`prem${p}_loc`,{sm:true})}</Cell>
+              <Cell label="Bld #" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_bld`,{sm:true})}</Cell>
+              <Cell label="Street" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_street`)}</Cell>
+              <Cell label="City Limits" style={{borderLeft:"1px solid var(--line)"}}>
+                <div>{C(`prem${p}_inside`,"Inside",9)}{C(`prem${p}_outside`,"Outside",9)}</div>
+              </Cell>
+              <Cell label="Interest" style={{borderLeft:"1px solid var(--line)"}}>
+                <div>{C(`prem${p}_owner`,"Owner",9)}{C(`prem${p}_tenant`,"Tenant",9)}</div>
+              </Cell>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <Cell label="City">{F(`prem${p}_city`)}</Cell>
+              <Cell label="County" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_county`)}</Cell>
+              <Cell label="State" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_state`)}</Cell>
+              <Cell label="ZIP" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_zip`)}</Cell>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <Cell label="# Full Time Empl">{F(`prem${p}_ft`)}</Cell>
+              <Cell label="# Part Time Empl" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_pt`)}</Cell>
+              <Cell label="Annual Revenues" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_revenue`)}</Cell>
+              <Cell label="Occupied Area (sq ft)" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_occupied`)}</Cell>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",borderTop:"1px solid var(--line)"}}>
+              <Cell label="Open to Public Area (sq ft)">{F(`prem${p}_public`)}</Cell>
+              <Cell label="Total Building Area (sq ft)" style={{borderLeft:"1px solid var(--line)"}}>{F(`prem${p}_total_area`)}</Cell>
+              <Cell label="Any Area Leased to Others?" style={{borderLeft:"1px solid var(--line)"}}>
+                {R(`prem${p}_leased`,"y","Y")}{R(`prem${p}_leased`,"n","N")}
+              </Cell>
+            </div>
+            <Cell label="Description of Operations:" style={{borderTop:"1px solid var(--line)",minHeight:24}}>{F(`prem${p}_desc`)}</Cell>
+          </div>
+        ))}
+
+        <SH>NATURE OF BUSINESS</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"5px 6px"}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:0}}>
+            {C("nob_apartments","Apartments")}
+            {C("nob_condos","Condominiums")}
+            {C("nob_contractor","Contractor")}
+            {C("nob_institutional","Institutional")}
+            {C("nob_mfg","Manufacturing")}
+            {C("nob_office","Office")}
+            {C("nob_restaurant","Restaurant")}
+            {C("nob_retail","Retail")}
+            {C("nob_service","Service")}
+            {C("nob_wholesale","Wholesale")}
+          </div>
+          <div style={{marginTop:4,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
+            <Cell label="Date Business Started (mm/dd/yyyy)">{F("biz_started")}</Cell>
+            <Cell label="Retail / Service % of Total Sales">{F("retail_pct")}</Cell>
+            <Cell label="Installation, Service or Repair Work %">{F("install_pct")}</Cell>
+          </div>
+          <div style={{marginTop:4,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
+            <Cell label="Annual Revenue">{F("annual_revenue")}</Cell>
+            <Cell label="Total Employees (FT + PT)">{F("num_employees")}</Cell>
+            <Cell label="Years in Business">{F("years_in_biz")}</Cell>
+          </div>
+          <Cell label="Description of Primary Operations" style={{marginTop:4,minHeight:30}}>{F("primary_ops")}</Cell>
+          <Cell label="Description of Operations of Other Named Insureds" style={{marginTop:4,minHeight:24}}>{F("other_ops")}</Cell>
+        </div>
+
+        <SH>ADDITIONAL INTEREST (Attach ACORD 45 for more Additional Interests)</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"5px 6px"}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:0,fontSize:9}}>
+            {C("ai_addl","Additional Insured",9)}
+            {C("ai_breach","Breach of Warranty",9)}
+            {C("ai_co_owner","Co-Owner",9)}
+            {C("ai_employee","Employee as Lessor",9)}
+            {C("ai_leaseback","Leaseback Owner",9)}
+            {C("ai_lender","Lender's Loss Payable",9)}
+            {C("ai_lienholder","Lienholder",9)}
+            {C("ai_loss_payee","Loss Payee",9)}
+            {C("ai_mortgagee","Mortgagee",9)}
+            {C("ai_owner","Owner",9)}
+            {C("ai_registrant","Registrant",9)}
+            {C("ai_trustee","Trustee",9)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,marginTop:4}}>
+            <Cell label="Name and Address">{F("ai_name_addr")}</Cell>
+            <Cell label="Rank">{F("ai_rank")}</Cell>
+            <Cell label="Reference / Loan #">{F("ai_loan")}</Cell>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,marginTop:4}}>
+            <Cell label="Phone (A/C, No, Ext)">{F("ai_phone")}</Cell>
+            <Cell label="Fax (A/C, No)">{F("ai_fax")}</Cell>
+            <Cell label="E-mail Address">{F("ai_email")}</Cell>
+          </div>
+          <Cell label="Item Description / Class / Loc #" style={{marginTop:4,minHeight:24}}>{F("ai_item_desc")}</Cell>
+        </div>
+      </Page>
+
+      <Page n={3}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:4}}>
+          <span>Agency Customer ID: {F("agency_cust_id_p3",{sm:true,style:{minWidth:140}})}</span>
+        </div>
+
+        <SH>GENERAL INFORMATION</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none"}}>
+          <div style={{padding:"3px 6px",fontSize:9,fontWeight:600,borderBottom:"1px solid var(--line)",display:"grid",gridTemplateColumns:"1fr 50px"}}>
+            <span></span><span style={{textAlign:"center"}}>Y / N</span>
+          </div>
+          {[
+            ["1a","Is the applicant a subsidiary of another entity?"],
+            ["1b","Does the applicant have any subsidiaries?"],
+            ["2","Is a formal safety program in operation? (Safety Manual, Monthly Meetings, OSHA, Safety Position)"],
+            ["3","Any exposure to flammables, explosives, chemicals?"],
+            ["4","Any other insurance with this company? (List policy numbers)"],
+            ["5","Any policy or coverage declined, cancelled or non-renewed during the prior three (3) years for any premises or operations?"],
+            ["6","Any past losses or claims relating to sexual abuse or molestation allegations, discrimination or negligent hiring?"],
+            ["7","During the last five years (ten in RI), has any applicant been indicted for or convicted of any degree of the crime of fraud, bribery, arson or any other arson-related crime in connection with this or any other property?"],
+            ["8","Any uncorrected fire and/or safety code violations?"],
+            ["9","Has applicant had a foreclosure, repossession, bankruptcy or filed for bankruptcy during the last five (5) years?"],
+            ["10","Has applicant had a judgement or lien during the last five (5) years?"],
+            ["11","Has business been placed in a trust? Name of trust:"],
+            ["12","Any foreign operations, foreign products distributed in USA, or US products sold/distributed in foreign countries?"],
+            ["13","Does applicant have other business ventures for which coverage is not requested?"],
+            ["14","Does applicant own / lease / operate any drones? (If \"YES\", describe use)"],
+            ["15","Does applicant hire others to operate drones? (If \"YES\", describe use)"],
+          ].map(([num,q])=>(
+            <div key={num} style={{display:"grid",gridTemplateColumns:"24px 1fr 50px",borderBottom:"1px solid var(--line)",fontSize:10}}>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)",fontWeight:600}}>{num}.</div>
+              <div style={{padding:"3px 6px"}}>{q}</div>
+              <div style={{padding:"3px 4px",borderLeft:"1px solid var(--line)",display:"flex",justifyContent:"space-around",alignItems:"center"}}>
+                {R(`gen${num}`,"y","Y",9)}{R(`gen${num}`,"n","N",9)}
+              </div>
+            </div>
+          ))}
+          <Cell label="Explain all &quot;YES&quot; responses (Occur Date / Explanation / Resolution / Resolve Date)" style={{minHeight:60}}>
+            {F("gen_explain",{block:true})}
+          </Cell>
+        </div>
+
+        <SH>REMARKS / PROCESSING INSTRUCTIONS (ACORD 101 may be attached)</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"4px 6px",minHeight:50}}>
+          {F("remarks",{block:true,style:{minHeight:42}})}
+        </div>
+      </Page>
+
+      <Page n={4}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:4}}>
+          <span>Agency Customer ID: {F("agency_cust_id_p4",{sm:true,style:{minWidth:140}})}</span>
+        </div>
+
+        <SH>PRIOR CARRIER INFORMATION</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none"}}>
+          {[1,2,3].map(n=>(
+            <div key={n} style={{display:"grid",gridTemplateColumns:"60px 1fr 1fr 1fr 1fr 1fr 1fr",borderBottom: n<3?"1px solid var(--line)":undefined}}>
+              <Cell label="Year">{F(`prior${n}_year`,{sm:true})}</Cell>
+              <Cell label="Category" style={{borderLeft:"1px solid var(--line)"}}>
+                <div style={{fontSize:9}}>
+                  {C(`prior${n}_gl`,"GL",9)}{C(`prior${n}_auto`,"Auto",9)}{C(`prior${n}_prop`,"Prop",9)}
+                </div>
+              </Cell>
+              <Cell label="Carrier" style={{borderLeft:"1px solid var(--line)"}}>{F(`prior${n}_carrier`)}</Cell>
+              <Cell label="Policy Number" style={{borderLeft:"1px solid var(--line)"}}>{F(`prior${n}_policy`)}</Cell>
+              <Cell label="Effective Date" style={{borderLeft:"1px solid var(--line)"}}>{F(`prior${n}_eff`)}</Cell>
+              <Cell label="Expiration Date" style={{borderLeft:"1px solid var(--line)"}}>{F(`prior${n}_exp`)}</Cell>
+              <Cell label="Premium $" style={{borderLeft:"1px solid var(--line)"}}>{F(`prior${n}_premium`)}</Cell>
+            </div>
+          ))}
+        </div>
+
+        <SH>LOSS HISTORY {C("loss_none","Check if none",10)}</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"4px 6px",fontSize:9,color:"#555",fontStyle:"italic"}}>
+          Enter all claims or losses (regardless of fault and whether or not insured) or occurrences that may give rise to claims for the last
+          {F("loss_years",{sm:true,style:{minWidth:30,margin:"0 4px"}})} years. Total losses: $ {F("loss_total",{sm:true,style:{minWidth:60}})}
+          (Attach Loss Summary for Additional Loss Information.)
+        </div>
+        <div style={{border:"1px solid var(--line)",borderTop:"none"}}>
+          <div style={{display:"grid",gridTemplateColumns:"60px 2fr 1fr 70px 1fr 70px 1fr 1fr",fontSize:9,fontWeight:600,borderBottom:"1px solid var(--line)",background:"#f5f1e2"}}>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Line</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Type / Description of Occurrence or Claim</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Date of Occurrence</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Open Y/N</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Amt Reserved</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Subro Y/N</div>
+            <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>Date of Claim</div>
+            <div style={{padding:"3px 4px"}}>Amount Paid</div>
+          </div>
+          {[1,2,3].map(r=>(
+            <div key={r} style={{display:"grid",gridTemplateColumns:"60px 2fr 1fr 70px 1fr 70px 1fr 1fr",borderBottom: r<3?"1px solid #ccc":undefined,fontSize:10}}>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_line`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_desc`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_date`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_open`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_reserved`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_subro`,{sm:true})}</div>
+              <div style={{padding:"3px 4px",borderRight:"1px solid var(--line)"}}>{F(`loss${r}_claim_date`,{sm:true})}</div>
+              <div style={{padding:"3px 4px"}}>{F(`loss${r}_paid`,{sm:true})}</div>
+            </div>
+          ))}
+        </div>
+
+        <SH>SIGNATURE</SH>
+        <div style={{border:"1px solid var(--line)",borderTop:"none",padding:"6px 8px",fontSize:9,color:"#555"}}>
+          The undersigned is an authorized representative of the applicant and represents that reasonable inquiry has been made to obtain the answers to questions on this application. He/she represents that the answers are true, correct and complete to the best of his/her knowledge.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",border:"1px solid var(--line)",borderTop:"none"}}>
+          <Cell label="Producer's Name (Please Print)">{F("producer_name")}</Cell>
+          <Cell label="State Producer License No" style={{borderLeft:"1px solid var(--line)"}}>{F("producer_license")}</Cell>
+          <Cell label="National Producer Number (Required in Florida)" style={{borderTop:"1px solid var(--line)"}}>{F("producer_npn")}</Cell>
+          <Cell label="Producer's Signature" style={{borderTop:"1px solid var(--line)",borderLeft:"1px solid var(--line)",minHeight:36}}>
+            <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,color:"#999"}}>{values.producer_sig || ""}</span>
+          </Cell>
+          <Cell label="Applicant's Signature" style={{borderTop:"1px solid var(--line)",minHeight:36}}>
+            <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,color:"#999"}}>{values.applicant_sig || ""}</span>
+          </Cell>
+          <Cell label="Date" style={{borderTop:"1px solid var(--line)",borderLeft:"1px solid var(--line)"}}>{F("sig_date")}</Cell>
+        </div>
+      </Page>
+    </div>
+  );
+}
+
+// =============================================================
+// TWEAK DEFAULTS
+// =============================================================
+const TWEAK_DEFAULTS = {
+  splitRatio: 38,
+  typeSpeed: 22,
+  stepDelay: 700,
+  showSketchOverlay: false,
+  autoplay: true,
+};
+
+// =============================================================
+// SCRIPT — drives both chat AND form filling (taqueria scenario, Spanish + EN)
+// =============================================================
+const SCRIPT = [
+  { from:"bot",
+    text:"Hola — le ayudo a llenar la solicitud de seguro comercial. ¿Cuál es el nombre del negocio asegurado?",
+    en:"Hi — I'll help you fill out the commercial insurance application. What's the named insured?" },
+  { from:"user",
+    text:"Taquería La Misión.",
+    en:"Taquería La Misión." },
+  { from:"bot",
+    text:"Permítame buscarlos — voy a sacar la dirección de Google Maps y el tipo de entidad del registro de la Secretaría de Estado de California.",
+    en:"Let me look them up — I'll pull the address from Google Maps and the entity type from the California Secretary of State registry." },
+  { from:"tool", tool:"maps",
+    title:"google.com/maps",
+    query:"Taquería La Misión, Mission District, San Francisco",
+    steps:[
+      "Buscando \"Taquería La Misión\" en Google Maps…",
+      "1 negocio · Mission District, SF",
+      "Leyendo ficha → dirección, teléfono, horario",
+    ],
+    result:{
+      name:"Taquería La Misión",
+      addr:"2891 24th Street, San Francisco, CA 94110",
+      mailing:"2891 24th Street, San Francisco, CA 94110",
+      phone:"(415) 555-0192",
+      category:"Restaurante mexicano · Taquería",
+    },
+    fills:[
+      ["insured_name","Taquería La Misión"],
+      ["insured_addr1","2891 24th Street"],
+      ["insured_city","San Francisco"],
+      ["insured_state","CA"],
+      ["insured_zip","94110"],
+      ["contact_phone","(415) 555-0192"],
+    ],
+  },
+  { from:"tool", tool:"registry",
+    title:"bizfileonline.sos.ca.gov · CA Business Search",
+    query:"Taquería La Misión LLC",
+    steps:[
+      "Consultando Secretaría de Estado de CA · Business Filings",
+      "Coincidencia: ID #202245610234 · Taquería La Misión LLC",
+      "Leyendo expediente → tipo, estado, agente registrado",
+      "Verificando NAICS / SIC para \"Restaurante de servicio limitado\"",
+    ],
+    result:{
+      filing_id:"202245610234",
+      type:"LLC",
+      status:"Activa · Vigente",
+      formed:"08/22/2011",
+      agent:"María Hernández",
+      naics:"722513 — Limited-Service Restaurants",
+      sic:"5812",
+    },
+    fills:[
+      ["insured_entity","llc"],
+      ["contact_name","María Hernández"],
+      ["insured_naics","722513"],
+      ["insured_sic","5812"],
+      ["biz_started","08/22/2011"],
+    ],
+  },
+  { from:"bot",
+    text:"Confirmado: es una LLC en San Francisco. También tengo el contacto principal. ¿Qué correo usamos para María?",
+    en:"Confirmed: it's an LLC in San Francisco. I also have the principal contact. What email should we use for María?" },
+  { from:"user",
+    text:"maria@lamisiontaqueria.com",
+    en:"maria@lamisiontaqueria.com",
+    fills:[ ["contact_email","maria@lamisiontaqueria.com"] ]},
+  { from:"bot",
+    text:"Antes de seguir, voy a consultar los registros públicos municipales de SF para llenar lo que pueda — permiso de salud, BAN del tesorero, planos, etc.",
+    en:"Before we continue, let me query SF's public municipal records to fill in what I can — health permit, Treasurer BAN, building footprint, etc." },
+  { from:"tool", tool:"municipal",
+    title:"Registros públicos municipales · San Francisco / California",
+    query:"\"Taquería La Misión\" · 2891 24th St · APN 6517-022",
+    steps:[
+      "Consultando 6 fuentes en paralelo…",
+      "SF Treasurer · Business Account Number…",
+      "SF Dept. of Public Health · permiso e inspecciones…",
+      "SF Planning / DBI · zonificación, año, área construida…",
+      "CDTFA · permiso de vendedor (sales tax)…",
+      "Cal/OSHA · historial de inspecciones…",
+      "Reconciliando datos en los campos del formulario…",
+    ],
+    sources:[
+      { agency:"SF Treasurer & Tax Collector",
+        url:"sftreasurer.org/business-account-search",
+        rows:[
+          ["Business Account No.", "0123456-78-001"],
+          ["Ownership type", "LLC"],
+          ["Start date in SF", "08/22/2011"],
+          ["Mailing address", "2891 24th St, SF 94110"],
+        ]},
+      { agency:"SF Dept. of Public Health",
+        url:"sfdph.org/dph/EH/food/permit",
+        rows:[
+          ["Food facility permit #", "FDA-2011-0419"],
+          ["Risk category", "High (full-service kitchen)"],
+          ["Last inspection", "02/14/2026 · Score 92"],
+          ["Open violations", "0"],
+        ]},
+      { agency:"SF Planning / DBI",
+        url:"sfplanning.org/property-information-map",
+        rows:[
+          ["APN (parcel)", "6517-022"],
+          ["Zoning", "NCT-3 · 24th St-Mission"],
+          ["Year built", "1924"],
+          ["Building area", "2,150 sq ft"],
+          ["Open to public area", "1,400 sq ft"],
+          ["Construction class", "V-B · wood frame"],
+        ]},
+      { agency:"CDTFA · CA Tax & Fee",
+        url:"cdtfa.ca.gov/services",
+        rows:[
+          ["Seller's permit #", "SR FH 102-345678"],
+          ["Status", "Active"],
+        ]},
+      { agency:"Cal/OSHA · Inspection History",
+        url:"osha.gov/pls/imis/establishment.html",
+        rows:[
+          ["Inspections (5 yr)", "0"],
+          ["Open citations", "None"],
+        ]},
+      { agency:"SF Fire Department",
+        url:"sf-fire.org/permits",
+        rows:[
+          ["Last fire inspection", "11/03/2025 · Pass"],
+          ["Sprinklers", "No · Type-1 hood w/ Ansul"],
+        ]},
+    ],
+    fills:[
+      ["prem1_loc","1"],
+      ["prem1_bld","1"],
+      ["prem1_street","2891 24th Street"],
+      ["prem1_city","San Francisco"],
+      ["prem1_county","San Francisco"],
+      ["prem1_state","CA"],
+      ["prem1_zip","94110"],
+      ["prem1_inside", true],
+      ["prem1_tenant", true],
+      ["prem1_total_area","2150"],
+      ["prem1_public","1400"],
+      ["prem1_occupied","2150"],
+      ["prem1_desc","Full-service taquería · dine-in + takeout · Type-1 hood w/ Ansul suppression"],
+      ["primary_ops","Limited-service Mexican restaurant (NAICS 722513)"],
+      ["nob_service", true],
+    ],
+  },
+  { from:"bot",
+    text:"Listo — saqué la dirección, área construida, zonificación, permiso de salud (puntaje 92, sin violaciones), y verifiqué que no hay citaciones abiertas con OSHA. ¿Con qué aseguradora cotizamos, y es cotización, emisión o renovación?",
+    en:"Done — pulled the address, building area, zoning, health permit (score 92, no violations), and confirmed no open OSHA citations. Which carrier are we quoting with, and is this a quote, issue, or renewal?" },
+  { from:"user",
+    text:"Travelers — cotización. Vigencia desde el 1 de junio de 2026, un año.",
+    en:"Travelers — a quote. Effective June 1, 2026, one-year term.",
+    fills:[
+      ["carrier","Travelers Indemnity Co."],
+      ["status_quote", true],
+      ["eff_date","06/01/2026"],
+      ["exp_date","06/01/2027"],
+      ["app_date","04/25/2026"],
+  ]},
+  { from:"bot",
+    text:"¿Qué ramos de seguro incluimos? ¿BOP, responsabilidad general, lo usual para un restaurante?",
+    en:"Which lines of business should I include? BOP, general liability, the usual for a restaurant?" },
+  { from:"user",
+    text:"BOP, responsabilidad general, y compensación de trabajadores. Las primas las dejamos en blanco.",
+    en:"BOP, general liability, and workers' comp. Leave the premiums blank.",
+    fills:[
+      ["lob_bop", true],
+      ["lob_gl", true],
+      ["lob_property", true],
+  ]},
+  { from:"bot",
+    text:"¿Hay algún suplemento que deba adjuntar? Por ejemplo, valores asegurados, historial de pérdidas…",
+    en:"Any supplements to attach? E.g. statement of values, loss history…" },
+  { from:"user",
+    text:"Todo está en la carpeta compartida de Google Drive — busca ahí.",
+    en:"It's all in the shared Google Drive folder — check there." },
+  { from:"bot",
+    text:"De acuerdo — buscando en la carpeta de Taquería La Misión.",
+    en:"Got it — searching the Taquería La Misión folder." },
+  { from:"tool", tool:"drive",
+    title:"drive.google.com · Clientes / Taquería La Misión",
+    query:"valores asegurados OR historial de pérdidas OR fotos del local",
+    steps:[
+      "Autenticando con Google Drive…",
+      "Escaneando 38 archivos en /Clientes/Taquería La Misión…",
+      "Comparando con adjuntos requeridos…",
+      "Encontré 3 documentos relevantes.",
+    ],
+    files:[
+      { name:"SOV_LaMision_2026.xlsx", kind:"xlsx", date:"12 abr 2026", size:"62 KB", match:"Statement of Values" },
+      { name:"Fotos_Cocina_Comedor.pdf", kind:"pdf", date:"08 abr 2026", size:"4.2 MB", match:"Premises Photos" },
+      { name:"Historial_Perdidas_2021-2025.pdf", kind:"pdf", date:"02 abr 2026", size:"890 KB", match:"5-yr Loss History" },
+    ],
+    fills:[
+      ["att_sov", true],
+      ["att_premises", true],
+      ["att_loss", true],
+    ],
+  },
+  { from:"bot",
+    text:"Adjunté valores asegurados, fotos del local, y el historial de pérdidas de 5 años. Ahora saco los ingresos y la nómina de QuickBooks para la sección de información general.",
+    en:"Attached SOV, premises photos, and 5-year loss history. Now pulling revenue and headcount from QuickBooks for the General Information section." },
+  { from:"tool", tool:"quickbooks",
+    title:"quickbooks.intuit.com · Taquería La Misión LLC",
+    query:"Estado de resultados FY2025 · Nómina · Perfil de la empresa",
+    steps:[
+      "Conectando con QuickBooks Online…",
+      "Leyendo perfil de la empresa…",
+      "Extrayendo P&L del año fiscal 2025…",
+      "Contando empleados activos en nómina…",
+      "Listo.",
+    ],
+    metrics:[
+      { label:"Ingresos anuales (FY2025)", value:"$1,420,000", field:"annual_revenue" },
+      { label:"Empleados (FT + PT)", value:"11", field:"num_employees" },
+      { label:"Años en operación", value:"15", field:"years_in_biz" },
+      { label:"Sucursales / DBAs", value:"Ninguna", field:"subsidiaries" },
+    ],
+    fills:[
+      ["annual_revenue","$1,420,000"],
+      ["num_employees","11"],
+      ["years_in_biz","15"],
+    ],
+  },
+  { from:"bot",
+    text:"Última pregunta — ¿plan de facturación y forma de pago?",
+    en:"Last question — billing plan and payment method?" },
+  { from:"user",
+    text:"Facturación directa, ACH, mensual.",
+    en:"Direct bill, ACH, monthly.",
+    fills:[
+      ["billing","direct"],
+      ["payment","ACH / Mensual"],
+  ]},
+  { from:"bot",
+    text:"Listo. La solicitud está completa — revise el formulario a la derecha y la enviamos a suscripción.",
+    en:"Done. The application is complete — review the form on the right and we'll send it to underwriting." },
+];
+
+// =============================================================
+// INSURABILITY SCORE
+// =============================================================
+function computeScore(values){
+  const criteria = [
+    { key:"applicant", label:"Applicant identified", weight:1.5,
+      hit: !!values.insured_name && !!values.insured_addr1 && !!values.insured_city && !!values.insured_state && !!values.insured_zip,
+      partial: !!values.insured_name },
+    { key:"entity", label:"Entity type", weight:1,
+      hit: !!values.insured_entity },
+    { key:"contact", label:"Contact info", weight:1.5,
+      hit: !!values.contact_name && !!values.contact_phone && !!values.contact_email,
+      partial: !!values.contact_name || !!values.contact_phone || !!values.contact_email },
+    { key:"carrier", label:"Carrier & status", weight:1,
+      hit: !!values.carrier && (values.status_quote || values.status_renew || values.status_issue || values.status_bound) },
+    { key:"dates", label:"Effective / exp dates", weight:1,
+      hit: !!values.eff_date && !!values.exp_date,
+      partial: !!values.eff_date || !!values.exp_date },
+    { key:"lob", label:"Lines of business", weight:2,
+      hit: ["lob_property","lob_gl","lob_auto","lob_bop","lob_umbrella","lob_crime","lob_cyber","lob_marine"].filter(k=>values[k]).length >= 2,
+      partial: ["lob_property","lob_gl","lob_auto","lob_bop","lob_umbrella","lob_crime","lob_cyber","lob_marine"].some(k=>values[k]) },
+    { key:"attach", label:"Supporting attachments", weight:1,
+      hit: ["att_sov","att_premises","att_loss","att_coverages"].filter(k=>values[k]).length >= 2,
+      partial: ["att_sov","att_premises","att_loss","att_coverages"].some(k=>values[k]) },
+    { key:"billing", label:"Billing & payment", weight:1,
+      hit: !!values.billing && !!values.payment,
+      partial: !!values.billing || !!values.payment },
+  ];
+  let pts = 0;
+  for (const c of criteria){
+    if (c.hit) pts += c.weight;
+    else if (c.partial) pts += c.weight * 0.5;
+  }
+  const anyFilled = Object.keys(values).length > 0;
+  let score = Math.max(anyFilled ? 1 : 0, Math.min(10, Math.round(pts)));
+  return { score, criteria };
+}
+
+function InsurabilityScore({values}){
+  const { score, criteria } = computeScore(values);
+  const band = score >= 8 ? {color:"#1f8a3a", label:"strong"} :
+               score >= 5 ? {color:"#caa01a", label:"developing"} :
+                            {color:"#c93341", label:"thin"};
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={()=>setOpen(true)}
+      onMouseLeave={()=>setOpen(false)}
+      style={{
+        position:"relative",
+        border:`1px solid ${band.color}`,
+        borderRadius:8,
+        background:"#fff",
+        padding:"8px 12px 10px",
+        width: open ? 200 : 132,
+        boxShadow:"0 2px 6px rgba(0,0,0,.08)",
+        transition:"width .22s ease",
+        cursor:"default",
+      }}
+    >
+      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:6}}>
+        <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:11,fontWeight:600,letterSpacing:".04em",textTransform:"uppercase",color:"#374151"}}>Insurability</div>
+        <div style={{fontSize:9,color:"var(--muted-2)",letterSpacing:".06em"}}>1–10</div>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:8,marginTop:4}}>
+        <div key={score} style={{
+          fontFamily:"Arial,Helvetica,sans-serif",
+          fontSize:28,
+          fontWeight:700,
+          lineHeight:1,
+          color:band.color,
+          animation:"scorePop .35s ease",
+        }}>{score}</div>
+        <div style={{fontSize:10,color:"var(--muted)",paddingBottom:4}}>/ 10 · <span style={{color:band.color,fontWeight:600}}>{band.label}</span></div>
+      </div>
+      <div style={{display:"flex",gap:2,marginTop:6}}>
+        {Array.from({length:10}).map((_,i)=>(
+          <div key={i} style={{
+            flex:1,height:4,
+            borderRadius:2,
+            background: i < score ? band.color : "#e5e7eb",
+            transition:"background .25s ease",
+          }}/>
+        ))}
+      </div>
+      <div style={{
+        maxHeight: open ? 220 : 0,
+        opacity: open ? 1 : 0,
+        overflow:"hidden",
+        transition:"max-height .22s ease, opacity .18s ease",
+        marginTop: open ? 8 : 0,
+      }}>
+        <div style={{display:"flex",flexDirection:"column",gap:3,paddingTop:6,borderTop:"1px solid var(--line)"}}>
+          {criteria.map(c=>(
+            <div key={c.key} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color: c.hit?"var(--ink)":"var(--muted)"}}>
+              <span style={{
+                display:"inline-block",width:9,height:9,borderRadius:2,
+                border:`1px solid ${c.hit ? band.color : (c.partial ? "var(--warning)" : "var(--line-strong)")}`,
+                background: c.hit ? band.color : (c.partial ? "#fbe9b9" : "#fff"),
+              }}/>
+              <span>{c.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// CHAT
+// =============================================================
+function Chat({messages, typing, onReplay, paused, onTogglePause, running}) {
+  const scrollerRef = useRef(null);
+  useEffect(()=>{
+    const el = scrollerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  },[messages, typing]);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#fff"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid var(--line)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:32,height:32,background:"var(--accent)",color:"#fff",borderRadius:"50%",display:"grid",placeItems:"center",fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,fontWeight:700,letterSpacing:".02em"}}>A</div>
+          <div>
+            <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,fontWeight:600,lineHeight:1.2}}>Accordingly</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Application assistant</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={onTogglePause} disabled={!running} style={{
+            fontFamily:"Arial,Helvetica,sans-serif",fontSize:12,fontWeight:500,
+            background: paused?"var(--accent)":"#fff",
+            color: paused?"#fff":"var(--ink)",
+            border:`1px solid ${paused?"var(--accent)":"var(--line-strong)"}`,
+            padding:"6px 12px",borderRadius:6,cursor:running?"pointer":"not-allowed",
+            opacity:running?1:.5,
+            transition:"background .15s",
+          }}>
+            {paused ? "▶ Resume" : "❚❚ Pause"}
+          </button>
+          <button onClick={onReplay} style={{
+            fontFamily:"Arial,Helvetica,sans-serif",fontSize:12,fontWeight:500,
+            background:"#fff",border:"1px solid var(--line-strong)",
+            padding:"6px 12px",borderRadius:6,cursor:"pointer"}}>↻ Replay</button>
+        </div>
+      </div>
+
+      <div ref={scrollerRef} style={{flex:1,overflow:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
+        {messages.map((m,i)=>(
+          m.from === "tool"
+            ? <ToolBubble key={i} {...m} progress={m.progress || {stepIdx:0, showResult:false}}/>
+            : <Bubble key={i} {...m}/>
+        ))}
+        {typing && <Bubble from="bot" text="…" muted/>}
+      </div>
+
+      <div style={{borderTop:"1px solid var(--line)",padding:"12px 14px",display:"flex",gap:8,alignItems:"center",background:"#fafbfc"}}>
+        <div style={{flex:1,border:"1px solid var(--line-strong)",borderRadius:6,padding:"9px 12px",background:"#fff",color:"var(--muted-2)",fontFamily:"Arial,Helvetica,sans-serif",fontSize:12}}>
+          Type a message or paste an email…
+        </div>
+        <button style={{
+          fontFamily:"Arial,Helvetica,sans-serif",fontSize:12,fontWeight:600,padding:"9px 16px",
+          background:"var(--accent)",color:"#fff",border:"none",borderRadius:6,cursor:"pointer"}}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Bubble({from, text, en, muted}) {
+  const isBot = from === "bot";
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems: isBot?"flex-start":"flex-end",gap:3}}>
+      <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:10,color:"var(--muted-2)",letterSpacing:".04em",textTransform:"uppercase",fontWeight:600,padding:"0 4px"}}>
+        {isBot ? "Assistant" : "You"}
+      </div>
+      <div style={{
+        maxWidth:"86%",
+        padding:"10px 14px",
+        border:"1px solid var(--line)",
+        borderRadius:8,
+        background: isBot? "#fff" : "var(--accent-soft)",
+        fontFamily:"Arial,Helvetica,sans-serif",
+        fontSize:13,
+        lineHeight:1.5,
+        boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+        color: muted? "var(--muted-2)":"var(--ink)",
+        position:"relative",
+      }}>
+        <div>{text}</div>
+        {en && text && (
+          <div style={{
+            marginTop:8,paddingTop:7,borderTop:"1px solid var(--line)",
+            fontFamily:"Arial,Helvetica,sans-serif",fontSize:12,color:"var(--muted)",
+            display:"flex",gap:6,alignItems:"flex-start",
+          }}>
+            <span style={{
+              fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:9,
+              border:"1px solid var(--line-strong)",borderRadius:3,
+              padding:"1px 4px",color:"var(--muted)",letterSpacing:".04em",
+              flexShrink:0,marginTop:1,fontWeight:600,
+            }}>EN</span>
+            <span>{en}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// TOOL BUBBLE
+// =============================================================
+function ToolBubble({tool, title, query, steps, result, files, metrics, sources, progress}) {
+  const isMaps = tool === "maps";
+  const isRegistry = tool === "registry";
+  const isDrive = tool === "drive";
+  const isQB = tool === "quickbooks";
+  const isMunicipal = tool === "municipal";
+  const queryIcon = isMaps?"📍":isRegistry?"🏛":isDrive?"📁":isQB?"💵":isMunicipal?"🏛":"🔎";
+  const resultLabel = isMaps?"Place details":isRegistry?"Corporate filing":isDrive?"Matched files":isQB?"QuickBooks data":isMunicipal?"Public records":"Source";
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:3}}>
+      <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:10,color:"var(--muted-2)",letterSpacing:".04em",textTransform:"uppercase",fontWeight:600,padding:"0 4px"}}>
+        Assistant · Tool use
+      </div>
+      <div style={{
+        maxWidth:"100%",
+        width:"100%",
+        border:"1px solid var(--line)",
+        borderRadius:8,
+        background:"#fff",
+        boxShadow:"0 1px 2px rgba(0,0,0,.04)",
+        position:"relative",
+        overflow:"hidden",
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderBottom:"1px solid var(--line)",background:"#fafbfc"}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:"#ed6a5e"}}/>
+          <span style={{width:8,height:8,borderRadius:"50%",background:"#f5bf4f"}}/>
+          <span style={{width:8,height:8,borderRadius:"50%",background:"#62c554"}}/>
+          <div style={{flex:1,marginLeft:8,padding:"3px 10px",border:"1px solid var(--line)",background:"#fff",borderRadius:4,fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:10,color:"var(--muted)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            🔒 {title}
+          </div>
+        </div>
+        {isMaps && (
+          <div style={{position:"relative",height:140,borderBottom:"1px solid var(--line)",background:"#e8eadf",overflow:"hidden"}}>
+            <svg viewBox="0 0 400 140" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%"}}>
+              <path d="M -10 110 Q 60 80 130 100 T 280 95 Q 360 90 410 115 L 410 150 L -10 150 Z" fill="#b8d3d6" stroke="#7ea3a6" strokeWidth="1"/>
+              <path d="M 30 20 Q 80 10 110 30 Q 120 60 90 65 Q 50 70 30 50 Z" fill="#cfe0b8" stroke="#9bb381" strokeWidth="1"/>
+              <path d="M 290 15 Q 360 20 380 50 Q 370 75 320 70 Q 280 60 290 30 Z" fill="#cfe0b8" stroke="#9bb381" strokeWidth="1"/>
+              <g stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round">
+                <path d="M -10 70 Q 100 60 200 75 T 410 70"/>
+                <path d="M 200 -10 L 195 80 L 230 130"/>
+                <path d="M 60 -10 L 70 50 L 130 75 L 150 140"/>
+                <path d="M 320 -10 L 310 60 L 350 90 L 360 140"/>
+              </g>
+              <g stroke="#bfb89f" strokeWidth="6.5" fill="none" strokeLinecap="round" opacity=".55">
+                <path d="M -10 70 Q 100 60 200 75 T 410 70"/>
+                <path d="M 200 -10 L 195 80 L 230 130"/>
+                <path d="M 60 -10 L 70 50 L 130 75 L 150 140"/>
+                <path d="M 320 -10 L 310 60 L 350 90 L 360 140"/>
+              </g>
+              <g stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" opacity=".95">
+                <path d="M 20 30 L 380 50"/>
+                <path d="M 10 110 L 390 100"/>
+                <path d="M 130 -5 L 145 140"/>
+                <path d="M 260 -5 L 255 140"/>
+                <path d="M 90 5 L 95 130"/>
+              </g>
+              <g fontFamily="Architects Daughter" fontSize="8" fill="#5a5a5a">
+                <text x="40" y="125" transform="rotate(-3 40 125)">Mission St</text>
+                <text x="200" y="65" transform="rotate(-2 200 65)">24th St</text>
+                <text x="320" y="120">Mission Dolores Park</text>
+                <text x="55" y="40">BART · 24th St</text>
+              </g>
+            </svg>
+            <div style={{position:"absolute",left:"54%",top:"38%",transform:"translate(-50%,-100%)",animation:"pinDrop .55s cubic-bezier(.5,1.6,.4,1)"}}>
+              <svg width="28" height="36" viewBox="0 0 28 36">
+                <path d="M14 2 C 6 2 2 8 2 14 C 2 22 14 34 14 34 C 14 34 26 22 26 14 C 26 8 22 2 14 2 Z"
+                  fill="var(--accent)" stroke="#1a1a1a" strokeWidth="1.5"/>
+                <circle cx="14" cy="13" r="4" fill="#fff" stroke="#1a1a1a" strokeWidth="1.2"/>
+              </svg>
+              <div style={{
+                position:"absolute",left:"50%",top:"100%",transform:"translateX(-50%)",
+                width:8,height:8,background:"rgba(0,0,0,.25)",borderRadius:"50%",
+                filter:"blur(2px)",
+              }}/>
+            </div>
+            {progress.showResult && result && (
+              <div style={{
+                position:"absolute",left:8,bottom:8,right:8,
+                background:"#fff",border:"1px solid var(--line)",borderRadius:6,
+                boxShadow:"0 1px 3px rgba(0,0,0,.1)",
+                padding:"5px 8px",
+                animation:"scorePop .3s ease",
+                fontFamily:"Arial,Helvetica,sans-serif",
+                display:"flex",alignItems:"center",gap:8,
+              }}>
+                <div style={{width:34,height:34,background:"#f4d27a",border:"1px solid var(--line)",borderRadius:4,display:"grid",placeItems:"center",fontSize:18}}>🌮</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{result.name}</div>
+                  <div style={{fontSize:9.5,color:"#555",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{result.addr}</div>
+                  <div style={{fontSize:9,color:"#888",marginTop:1}}>★★★★☆ · {result.category}</div>
+                </div>
+              </div>
+            )}
+            <div style={{position:"absolute",right:6,top:6,display:"flex",flexDirection:"column",border:"1px solid var(--line)",borderRadius:3,background:"#fff",fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:11,lineHeight:1}}>
+              <span style={{padding:"2px 6px",borderBottom:"1px solid var(--line)"}}>+</span>
+              <span style={{padding:"2px 6px"}}>−</span>
+            </div>
+          </div>
+        )}
+        {isDrive && (
+          <div style={{padding:"8px 10px",borderBottom:"1px solid var(--line)",background:"#fafaf3"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:"#555",fontFamily:"ui-monospace,Menlo,Consolas,monospace",marginBottom:6}}>
+              <span style={{display:"inline-block",width:14,height:14,background:"linear-gradient(135deg,#4285f4 0 33%,#0f9d58 33% 66%,#f4b400 66%)",borderRadius:2,border:"1px solid var(--line)"}}/>
+              <span>My Drive › Clientes › <b>Taquería La Misión</b></span>
+              <span style={{marginLeft:"auto",color:"#888"}}>38 items</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:6}}>
+              {[
+                {n:"Declaraciones_2024.pdf",k:"pdf",dim:true},
+                {n:"Permiso_Salud_SF.pdf",k:"pdf",dim:true},
+                {n:"SOV_LaMision_2026.xlsx",k:"xlsx",hl:progress.stepIdx>=2},
+                {n:"Contrato_Renta.zip",k:"zip",dim:true},
+                {n:"Fotos_Cocina_Comedor.pdf",k:"pdf",hl:progress.stepIdx>=2},
+                {n:"Estados_Banco_Q1.pdf",k:"pdf",dim:true},
+                {n:"Historial_Perdidas_2021-2025.pdf",k:"pdf",hl:progress.stepIdx>=2},
+                {n:"Menu_Fotos",k:"folder",dim:true},
+              ].map((f,i)=>(
+                <div key={i} style={{
+                  border:"1px solid var(--line)",borderRadius:4,
+                  background: f.hl?"#fff8d8":"#fff",
+                  padding:"4px 5px",
+                  opacity: f.dim&&!f.hl?.45:1,
+                  fontFamily:"Arial,Helvetica,sans-serif",fontSize:9,
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+                  position:"relative",
+                  boxShadow: f.hl?"0 0 0 2px var(--accent)":"none",
+                  transition:"all .25s",
+                }}>
+                  <div style={{
+                    width:24,height:30,
+                    background: f.k==="pdf"?"#e6c0c0":f.k==="xlsx"?"#c2dcbf":f.k==="zip"?"#d8d2bb":f.k==="folder"?"#f4d27a":"#eee",
+                    border:"1px solid var(--line)",borderRadius:"2px 6px 2px 2px",
+                    position:"relative",
+                  }}>
+                    <span style={{position:"absolute",bottom:1,left:0,right:0,textAlign:"center",fontSize:7,fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontWeight:700}}>
+                      {f.k==="folder"?"":f.k.toUpperCase()}
+                    </span>
+                  </div>
+                  <span style={{fontSize:8,textAlign:"center",lineHeight:1.1,maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%"}}>{f.n}</span>
+                  {f.hl && progress.stepIdx>=2 && (
+                    <span style={{position:"absolute",top:-4,right:-4,fontSize:11,color:"#1f8a3a",background:"#fff",border:"1px solid var(--line)",borderRadius:"50%",width:14,height:14,display:"grid",placeItems:"center",lineHeight:1}}>✓</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {isQB && (
+          <div style={{padding:"8px 10px",borderBottom:"1px solid var(--line)",background:"#f4f7f2"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,fontFamily:"ui-monospace,Menlo,Consolas,monospace",marginBottom:6}}>
+              <span style={{display:"grid",placeItems:"center",width:16,height:16,background:"#2ca01c",color:"#fff",border:"1px solid var(--line)",borderRadius:"50%",fontSize:9,fontWeight:700,fontFamily:"sans-serif"}}>qb</span>
+              <span style={{color:"#555"}}>QuickBooks Online · <b>Taquería La Misión LLC</b></span>
+              <span style={{marginLeft:"auto",color:"#1f8a3a",fontSize:9}}>● conectado</span>
+            </div>
+            <div style={{border:"1px solid var(--line)",background:"#fff",borderRadius:4,padding:"6px 8px",marginBottom:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:13}}>Ingresos · últimos 5 años</span>
+                <span style={{fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:9,color:"#888"}}>FY21 — FY25</span>
+              </div>
+              <svg viewBox="0 0 240 36" style={{width:"100%",height:32}}>
+                {(() => {
+                  const data=[0.85,0.92,1.18,1.31,1.42];
+                  const max=1.6;
+                  const bw=240/data.length;
+                  return data.map((v,i)=>{
+                    const h = (v/max)*30;
+                    const reveal = progress.stepIdx >= 2;
+                    return (
+                      <g key={i}>
+                        <rect x={i*bw+6} y={36-h} width={bw-12} height={h}
+                          fill={i===data.length-1?"var(--accent)":"#2ca01c"}
+                          stroke="#1a1a1a" strokeWidth="1"
+                          opacity={reveal?1:.15}
+                          style={{transition:"opacity .4s",transitionDelay:`${i*60}ms`}}/>
+                        <text x={i*bw+bw/2} y={34} textAnchor="middle" fontSize="6" fontFamily="JetBrains Mono" fill="#555">${v}M</text>
+                      </g>
+                    );
+                  });
+                })()}
+              </svg>
+            </div>
+            {metrics && progress.stepIdx>=2 && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                {metrics.map((m,i)=>(
+                  <div key={i} style={{border:"1px solid var(--line)",background:"#fff",borderRadius:4,padding:"4px 6px",animation:"scorePop .3s ease",animationDelay:`${i*80}ms`,animationFillMode:"backwards"}}>
+                    <div style={{fontSize:8,color:"#888",fontFamily:"ui-monospace,Menlo,Consolas,monospace",textTransform:"uppercase",letterSpacing:".04em"}}>{m.label}</div>
+                    <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:13,fontWeight:600,color:"var(--accent)"}}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {isMunicipal && (
+          <div style={{padding:"8px 10px",borderBottom:"1px solid var(--line)",background:"#f5f3ee"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,fontFamily:"ui-monospace,Menlo,Consolas,monospace",marginBottom:6,color:"#555"}}>
+              <span style={{display:"grid",placeItems:"center",width:16,height:16,background:"#1a4480",color:"#fff",borderRadius:3,fontSize:9,fontWeight:700}}>SF</span>
+              <span>Sweep · 6 fuentes públicas</span>
+              <span style={{marginLeft:"auto",color:"#1f8a3a",fontSize:9}}>● {Math.min(progress.stepIdx, sources?.length||0)}/{sources?.length||6}</span>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              {(sources||[]).map((src,i)=>{
+                const live = progress.stepIdx > i;
+                const active = progress.stepIdx === i+1 && !progress.showResult;
+                return (
+                  <div key={i} style={{
+                    border:"1px solid var(--line)",borderRadius:4,
+                    background: live?"#fff":"#fafaf3",
+                    opacity: live||active?1:.45,
+                    padding:"4px 6px",
+                    transition:"all .25s",
+                  }}>
+                    <div style={{display:"flex",alignItems:"center",gap:5,fontSize:9.5}}>
+                      <span style={{
+                        width:8,height:8,borderRadius:"50%",
+                        background: live?"#1f8a3a":active?"#caa01a":"#bbb",
+                        border:"1px solid var(--line)",flexShrink:0,
+                      }}/>
+                      <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:600,fontSize:10}}>{src.agency}</span>
+                      <span style={{fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:8,color:"#888",marginLeft:"auto",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"45%"}}>{src.url}</span>
+                    </div>
+                    {live && (
+                      <div style={{display:"grid",gridTemplateColumns:"max-content 1fr",gap:"1px 8px",marginTop:3,fontSize:9,fontFamily:"Arial,Helvetica,sans-serif",animation:"scorePop .3s ease"}}>
+                        {src.rows.map(([k,v],j)=>(
+                          <React.Fragment key={j}>
+                            <span style={{color:"#888",fontSize:8,paddingTop:1}}>{k}</span>
+                            <span style={{color:"#1a1a1a"}}>{v}</span>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <div style={{padding:"8px 10px",borderBottom:"1px dotted #ccc",display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,color:"#666"}}>{queryIcon}</span>
+          <span style={{fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:11,background:"#fff",border:"1px solid var(--line)",padding:"2px 6px",borderRadius:3,flex:1}}>
+            {query}
+          </span>
+          <span style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:14,color:"#999"}}>↵</span>
+        </div>
+        <div style={{padding:"6px 10px",fontFamily:"ui-monospace,Menlo,Consolas,monospace",fontSize:10.5,lineHeight:1.5,color:"#333"}}>
+          {steps.map((s,i)=>{
+            const done = i < progress.stepIdx;
+            const active = i === progress.stepIdx && !progress.showResult;
+            const pending = i > progress.stepIdx;
+            return (
+              <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,opacity: pending?.35:1}}>
+                <span style={{width:12,display:"inline-block",color: done?"#1f8a3a": active?"#caa01a":"#888"}}>
+                  {done?"✓": active?"›":"·"}
+                </span>
+                <span style={{color: done?"#1a1a1a": active?"#1a1a1a":"#888"}}>
+                  {s}{active && <span className="caret" style={{marginLeft:4}}/>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {progress.showResult && result && (
+          <div style={{margin:"6px 12px 12px",border:"1px solid var(--line)",borderRadius:6,background:"#fafbfc",padding:"10px 12px",animation:"scorePop .3s ease"}}>
+            <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:11,color:"var(--success)",marginBottom:6,fontWeight:600,letterSpacing:".02em",textTransform:"uppercase"}}>
+              ✓ Extracted · {resultLabel}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"max-content 1fr",gap:"4px 14px",fontSize:11,fontFamily:"Arial,Helvetica,sans-serif"}}>
+              {Object.entries(result).map(([k,v])=>(
+                <React.Fragment key={k}>
+                  <span style={{color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",fontSize:9,paddingTop:2,fontWeight:600}}>{k.replace(/_/g," ")}</span>
+                  <span style={{color:"var(--ink)"}}>{v}</span>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// SKETCH OVERLAY
+// =============================================================
+function SketchOverlay() {
+  return (
+    <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" style={{
+      position:"fixed",inset:0,width:"100%",height:"100%",pointerEvents:"none",opacity:.18,mixBlendMode:"multiply",zIndex:5,
+    }}>
+      <g stroke="#e23a55" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="60" y="70" width="320" height="560" rx="6"/>
+        <rect x="80" y="540" width="100" height="40" rx="4"/>
+        <rect x="700" y="100" width="80" height="60" rx="4"/>
+        <path d="M 380 300 C 430 280, 470 320, 510 300"/>
+        <path d="M 30 280 C 60 320, 110 280, 130 320"/>
+      </g>
+    </svg>
+  );
+}
+
+// =============================================================
+// APP
+// =============================================================
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [values, setValues] = useState({});
+  const [filling, setFilling] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [typing, setTyping] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const cancelRef = useRef(false);
+  const pausedRef = useRef(false);
+  const formScrollRef = useRef(null);
+
+  const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+
+  const gate = useCallback(async () => {
+    while (pausedRef.current && !cancelRef.current) {
+      await sleep(80);
+    }
+  },[]);
+
+  const togglePause = useCallback(()=>{
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+  },[]);
+
+  const scrollFieldIntoView = useCallback((id) => {
+    const scroller = formScrollRef.current;
+    if (!scroller) return;
+    const el = scroller.querySelector(`[name="${id}"], [data-fid="${id}"]`);
+    if (!el) return;
+    const sRect = scroller.getBoundingClientRect();
+    const eRect = el.getBoundingClientRect();
+    const offsetWithin = eRect.top - sRect.top + scroller.scrollTop;
+    const target = offsetWithin - sRect.height * 0.4;
+    scroller.scrollTo({ top: Math.max(0, target), behavior:"smooth" });
+  },[]);
+
+  const typeMessage = useCallback(async (msg) => {
+    if (cancelRef.current) return;
+    await gate();
+    setTyping(true);
+    await sleep(420);
+    if (cancelRef.current) return;
+    const full = msg.text;
+    let cur = "";
+    setTyping(false);
+    setMessages(m => [...m, {...msg, text:""}]);
+    for (let i=0;i<full.length;i++){
+      if (cancelRef.current) return;
+      await gate();
+      cur += full[i];
+      setMessages(m => {
+        const copy = m.slice();
+        copy[copy.length-1] = {...copy[copy.length-1], text: cur};
+        return copy;
+      });
+      await sleep(tweaks.typeSpeed);
+    }
+  },[tweaks.typeSpeed, gate]);
+
+  const fillField = useCallback(async ([id, val]) => {
+    if (cancelRef.current) return;
+    await gate();
+    setFilling(id);
+    scrollFieldIntoView(id);
+    await sleep(280);
+    if (typeof val === "string") {
+      let cur = "";
+      for (let i=0;i<val.length;i++){
+        if (cancelRef.current) return;
+        await gate();
+        cur += val[i];
+        setValues(v => ({...v, [id]: cur}));
+        await sleep(Math.max(8, tweaks.typeSpeed*0.6));
+      }
+    } else {
+      setValues(v => ({...v, [id]: val}));
+      await sleep(220);
+    }
+    setFilling(null);
+  },[tweaks.typeSpeed, gate, scrollFieldIntoView]);
+
+  const runToolStep = useCallback(async (step) => {
+    if (cancelRef.current) return;
+    await gate();
+    const idx = await new Promise(resolve => {
+      setMessages(m => {
+        const next = [...m, {...step, progress:{stepIdx:0, showResult:false}}];
+        resolve(next.length - 1);
+        return next;
+      });
+    });
+    const updateProgress = (p) => {
+      setMessages(m => {
+        const copy = m.slice();
+        if (copy[idx]) copy[idx] = {...copy[idx], progress:{...copy[idx].progress, ...p}};
+        return copy;
+      });
+    };
+    await sleep(450);
+    for (let i=0;i<step.steps.length;i++){
+      if (cancelRef.current) return;
+      await gate();
+      updateProgress({stepIdx:i, showResult:false});
+      await sleep(650 + Math.random()*350);
+    }
+    if (cancelRef.current) return;
+    await gate();
+    updateProgress({stepIdx: step.steps.length, showResult:true});
+    await sleep(500);
+    if (step.fills){
+      for (const f of step.fills){
+        if (cancelRef.current) break;
+        await fillField(f);
+      }
+    }
+  },[fillField, gate]);
+
+  const runScript = useCallback(async () => {
+    cancelRef.current = false;
+    pausedRef.current = false;
+    setPaused(false);
+    setRunning(true);
+    setMessages([]);
+    setValues({});
+    setFilling(null);
+    await sleep(400);
+    for (const step of SCRIPT) {
+      if (cancelRef.current) break;
+      await gate();
+      if (step.from === "tool") {
+        await runToolStep(step);
+      } else {
+        await typeMessage(step);
+        if (step.fills) {
+          await sleep(220);
+          for (const f of step.fills) {
+            if (cancelRef.current) break;
+            await fillField(f);
+          }
+        }
+      }
+      await sleep(tweaks.stepDelay);
+    }
+    setRunning(false);
+  },[typeMessage, fillField, runToolStep, tweaks.stepDelay, gate]);
+
+  const replay = useCallback(()=>{
+    cancelRef.current = true;
+    setTimeout(()=>{ runScript(); }, 100);
+  },[runScript]);
+
+  useEffect(()=>{
+    if (tweaks.autoplay && !running && messages.length===0) {
+      runScript();
+    }
+    // eslint-disable-next-line
+  },[]);
+
+  return (
+    <div style={{minHeight:"100vh",position:"relative"}}>
+      {tweaks.showSketchOverlay && <SketchOverlay/>}
+
+      <div style={{
+        display:"grid",
+        gridTemplateColumns:`${tweaks.splitRatio}fr ${100-tweaks.splitRatio}fr`,
+        gap:0,
+        height:"100vh",
+        paddingTop:0,
+      }}>
+        <div style={{padding:"16px 12px 16px 16px",height:"100vh",position:"relative"}}>
+          <div className="panel" style={{height:"100%",borderRadius:8,overflow:"hidden",background:"#fff",boxShadow:"0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04)"}}>
+            <Chat messages={messages} typing={typing} onReplay={replay} paused={paused} onTogglePause={togglePause} running={running}/>
+          </div>
+        </div>
+
+        <div ref={formScrollRef} style={{padding:"16px 16px 16px 8px",height:"100vh",overflow:"auto",position:"relative",scrollBehavior:"smooth"}}>
+          <div style={{position:"sticky",top:0,zIndex:9,height:0,pointerEvents:"none"}}>
+            <div style={{position:"absolute",top:0,right:0,pointerEvents:"auto"}}>
+              <InsurabilityScore values={values}/>
+            </div>
+          </div>
+          <div className="panel" style={{borderRadius:8,background:"#fff",boxShadow:"0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04)",position:"relative",minHeight:"calc(100vh - 32px)",paddingBottom:88}}>
+            <AcordForm values={values} filling={filling}/>
+            <a className="wireframe-submit" href="success.html">Submit Application</a>
+          </div>
+        </div>
+      </div>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Layout">
+          <TweakSlider label="Chat width %" value={tweaks.splitRatio} min={28} max={55} step={1}
+            onChange={v=>setTweak("splitRatio", v)}/>
+          <TweakToggle label="Show sketch overlay" value={tweaks.showSketchOverlay}
+            onChange={v=>setTweak("showSketchOverlay", v)}/>
+        </TweakSection>
+        <TweakSection label="Demo">
+          <TweakToggle label="Autoplay on load" value={tweaks.autoplay}
+            onChange={v=>setTweak("autoplay", v)}/>
+          <TweakSlider label="Typing speed (ms/char)" value={tweaks.typeSpeed} min={6} max={60} step={2}
+            onChange={v=>setTweak("typeSpeed", v)}/>
+          <TweakSlider label="Pause between turns (ms)" value={tweaks.stepDelay} min={150} max={1800} step={50}
+            onChange={v=>setTweak("stepDelay", v)}/>
+          <TweakButton label="↻ Replay demo" onClick={replay}/>
+        </TweakSection>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
